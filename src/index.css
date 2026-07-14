@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+html, body { margin: 0; }
+body {
+  font-family: theme('fontFamily.body');
+  background: theme('colors.paper');
+  color: theme('colors.ink');
+  -webkit-font-smoothing: antialiased;
+}
+/* score spectrum used only where a score is shown as a scale */
+.spectrum { background: linear-gradient(90deg, #E02424 0%, #B45309 45%, #0E9F6E 100%); }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
