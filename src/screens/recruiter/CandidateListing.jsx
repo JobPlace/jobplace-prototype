@@ -1,37 +1,36 @@
 import { useState, useMemo } from 'react'
-import { Card, Button, Eyebrow, BackLink, Score, Badge } from '../../components/ui.jsx'
+import { Card, Button, Eyebrow, BackLink, Score } from '../../components/ui.jsx'
 import Histogram from '../../components/Histogram.jsx'
 import { ROLES, candidatesFor, expBand, SOURCE_LIST } from '../../data.js'
 
-const TOPN = [['all', 'All'], ['150', 'Top 150'], ['100', 'Top 100'], ['50', 'Top 50']]
+const QUICK = [10, 20, 30, 50]
 
 export default function CandidateListing({ go, back, roleId }) {
   const role = ROLES.find((r) => r.id === roleId) || ROLES[0]
   const all = useMemo(() => candidatesFor(role), [role])
 
-  const [topN, setTopN] = useState('all')
   const [source, setSource] = useState('all')
   const [exp, setExp] = useState('all')
-  const [threshold, setThreshold] = useState(70)
-  const [feedback, setFeedback] = useState({}) // id -> 'agree'|'up'|'down'
-  const [selected, setSelected] = useState({}) // id -> true
+  const [topN, setTopN] = useState(30)
+  const [selected, setSelected] = useState({})
 
-  const filtered = useMemo(() => {
-    let f = all.filter((c) => (source === 'all' || c.source === source) && (exp === 'all' || expBand(c.exp) === exp))
-    f = [...f].sort((a, b) => b.profileScore - a.profileScore)
-    if (topN !== 'all') f = f.slice(0, Number(topN))
-    return f
-  }, [all, source, exp, topN])
+  // slice filters first, then rank
+  const pool = useMemo(() => {
+    const f = all.filter((c) => (source === 'all' || c.source === source) && (exp === 'all' || expBand(c.exp) === exp))
+    return [...f].sort((a, b) => b.profileScore - a.profileScore)
+  }, [all, source, exp])
 
-  const scores = filtered.map((c) => c.profileScore)
-  const overThreshold = filtered.filter((c) => c.profileScore >= threshold)
+  const n = Math.min(topN, pool.length)
+  const shown = pool.slice(0, n)
+  // rank-derived boundary: the score of the Nth candidate decides which bars light up
+  const cutoffScore = shown.length ? shown[shown.length - 1].profileScore : null
+
   const selectedIds = Object.keys(selected).filter((k) => selected[k])
 
-  function setFb(id, v) { setFeedback((p) => ({ ...p, [id]: p[id] === v ? undefined : v })) }
   function toggle(id) { setSelected((p) => ({ ...p, [id]: !p[id] })) }
-  function selectOverThreshold() {
+  function selectShown() {
     const next = {}
-    overThreshold.forEach((c) => { next[c.id] = true })
+    shown.forEach((c) => { next[c.id] = true })
     setSelected(next)
   }
 
@@ -49,30 +48,44 @@ export default function CandidateListing({ go, back, roleId }) {
         </Button>
       </div>
 
-      {/* TOP: distribution + filters */}
+      {/* TOP: distribution + top-N + filters */}
       <Card className="p-6 mb-5">
         <div className="grid lg:grid-cols-[1.4fr_1fr] gap-8">
           <div>
             <div className="flex items-baseline justify-between mb-4">
               <span className="font-display font-semibold text-ink">Profile-match distribution</span>
-              <span className="font-mono text-[11px] text-faint tabular-nums">{filtered.length} shown</span>
+              <span className="font-mono text-[11px] text-faint tabular-nums">{pool.length} in pool</span>
             </div>
-            <Histogram scores={scores} threshold={threshold} onThreshold={setThreshold} height={150} />
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-sm text-muted">Above the cutoff: <span className="font-mono font-bold text-brand">{overThreshold.length}</span> candidates</p>
-              <Button size="sm" variant="soft" onClick={selectOverThreshold}>Select all above {threshold}</Button>
+            <Histogram scores={pool.map((c) => c.profileScore)} cutoffScore={cutoffScore} height={150} />
+
+            <div className="mt-5">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-sm text-muted">Show top candidates</span>
+                <span className="font-mono text-sm font-bold text-brand tabular-nums">Top {n}</span>
+              </div>
+              <input
+                type="range" min="1" max={pool.length || 1} step="1" value={n}
+                onChange={(e) => setTopN(Number(e.target.value))}
+                className="w-full accent-brand"
+                aria-label="Top N candidates"
+              />
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                {QUICK.map((q) => (
+                  <button key={q} onClick={() => setTopN(q)} disabled={q > pool.length}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors disabled:opacity-30 ${n === q ? 'bg-brand-soft border-brand text-brand-dark' : 'border-line-strong text-muted hover:text-ink'}`}>
+                    Top {q}
+                  </button>
+                ))}
+                <button onClick={() => setTopN(pool.length)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${n === pool.length ? 'bg-brand-soft border-brand text-brand-dark' : 'border-line-strong text-muted hover:text-ink'}`}>
+                  All {pool.length}
+                </button>
+                <Button size="sm" variant="soft" className="ml-auto" onClick={selectShown}>Select these {n}</Button>
+              </div>
             </div>
           </div>
 
           <div className="lg:border-l lg:border-line lg:pl-8">
-            <div className="mb-5">
-              <div className="text-xs text-faint uppercase tracking-wide mb-2">Rank</div>
-              <div className="flex flex-wrap gap-2">
-                {TOPN.map(([v, l]) => (
-                  <button key={v} onClick={() => setTopN(v)} className={`text-sm px-3 py-1.5 rounded-full border transition-colors ${topN === v ? 'bg-brand-soft border-brand text-brand-dark' : 'border-line-strong text-muted hover:text-ink'}`}>{l}</button>
-                ))}
-              </div>
-            </div>
             <div className="mb-5">
               <div className="text-xs text-faint uppercase tracking-wide mb-2">Source</div>
               <select value={source} onChange={(e) => setSource(e.target.value)} className="w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand">
@@ -90,18 +103,18 @@ export default function CandidateListing({ go, back, roleId }) {
                 <option value="8+">8+ yrs</option>
               </select>
             </div>
+            <p className="text-xs text-faint mt-5 leading-relaxed">Filters narrow the pool; the slider ranks it. The highlighted bars show where your top {n} sit.</p>
           </div>
         </div>
       </Card>
 
-      {/* BOTTOM: the list (majority of the screen), sorted by profile score */}
+      {/* BOTTOM: only the top-N, sorted by profile score */}
       <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-xs text-faint uppercase tracking-wide">Sorted by profile-match score</span>
-        <span className="text-xs text-faint">tap ✓ to add to the test pool · rate the score to train the model</span>
+        <span className="text-xs text-faint uppercase tracking-wide">Top {n} · sorted by profile-match score</span>
+        <span className="text-xs text-faint">tap ✓ to add to the test pool · tap a candidate for full detail</span>
       </div>
       <div className="space-y-2">
-        {filtered.map((c, idx) => {
-          const fb = feedback[c.id]
+        {shown.map((c, idx) => {
           const sel = selected[c.id]
           return (
             <Card key={c.id} className={`px-4 py-3 flex items-center gap-4 ${sel ? 'ring-1 ring-brand border-brand' : ''}`}>
@@ -109,32 +122,16 @@ export default function CandidateListing({ go, back, roleId }) {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12l5 5L20 7" /></svg>
               </button>
               <span className="font-mono text-xs text-faint w-6 tabular-nums">{idx + 1}</span>
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-ink truncate">{c.name}</div>
-                <div className="text-xs text-muted">{c.source} · {c.exp} yr{c.exp === 1 ? '' : 's'} exp · applied {c.appliedDaysAgo}d ago</div>
-              </div>
-              <div className="hidden sm:flex items-center gap-1.5">
-                <span className="text-xs text-faint mr-1">score right?</span>
-                <FbBtn active={fb === 'agree'} tone="ok" onClick={() => setFb(c.id, 'agree')} label="Agree">=</FbBtn>
-                <FbBtn active={fb === 'up'} tone="up" onClick={() => setFb(c.id, 'up')} label="Too low">↑</FbBtn>
-                <FbBtn active={fb === 'down'} tone="down" onClick={() => setFb(c.id, 'down')} label="Too high">↓</FbBtn>
-              </div>
-              <div className="w-14 text-right"><Score value={c.profileScore} size="sm" tone={c.profileScore >= 70 ? 'brand' : 'ink'} /></div>
+              <button onClick={() => go('candidateDetail', { roleId: role.id, candidateId: c.id })} className="min-w-0 flex-1 text-left group">
+                <div className="font-medium text-ink truncate group-hover:text-brand transition-colors">{c.name}</div>
+                <div className="text-xs text-muted truncate">{c.currentRole} · {c.source} · applied {c.appliedDaysAgo}d ago</div>
+              </button>
+              <span className="hidden sm:inline-flex items-center font-mono text-xs font-bold bg-black/5 text-ink rounded-full px-2.5 py-1 whitespace-nowrap tabular-nums">{c.exp} yr{c.exp === 1 ? '' : 's'}</span>
+              <div className="w-14 text-right"><Score value={c.profileScore} size="sm" tone={cutoffScore != null && c.profileScore >= cutoffScore ? 'brand' : 'ink'} /></div>
             </Card>
           )
         })}
       </div>
     </div>
-  )
-}
-
-function FbBtn({ children, active, tone, onClick, label }) {
-  const tones = {
-    ok: active ? 'bg-ink text-white border-ink' : 'border-line-strong text-muted hover:border-ink',
-    up: active ? 'bg-pos text-white border-pos' : 'border-line-strong text-muted hover:border-pos',
-    down: active ? 'bg-neg text-white border-neg' : 'border-line-strong text-muted hover:border-neg',
-  }
-  return (
-    <button onClick={onClick} title={label} aria-label={label} className={`h-7 w-7 rounded-md border font-bold text-sm grid place-items-center transition-colors ${tones[tone]}`}>{children}</button>
   )
 }

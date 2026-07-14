@@ -10,6 +10,9 @@ const FIRST = ['Aarav','Diya','Kabir','Meera','Rohan','Ananya','Vikram','Isha','
 const LAST = ['Rao','Iyer','Shah','Nair','Gupta','Menon','Reddy','Bose','Kapoor','Verma',
   'Sharma','Khanna','Pillai','Sinha','Desai','Mehta','Chopra','Banerjee','Joshi','Malhotra']
 
+const ROLES_NOW = ['Associate Product Manager','Product Manager','Product Analyst','Business Analyst',
+  'Senior Product Manager','Growth PM','Product Owner','Program Manager','Data Analyst','UX Researcher']
+
 // simple deterministic PRNG
 function mulberry(seed) {
   return function () {
@@ -40,7 +43,8 @@ export function candidatesFor(role) {
     const source = SOURCES[Math.floor(rand() * SOURCES.length)]
     const exp = Math.round(rand() * rand() * 13)
     const appliedDaysAgo = 1 + Math.floor(rand() * 12)
-    out.push({ id: `${role.id}-${i}`, name, profileScore: score, source, exp, appliedDaysAgo })
+    const currentRole = ROLES_NOW[Math.floor(rand() * ROLES_NOW.length)]
+    out.push({ id: `${role.id}-${i}`, name, profileScore: score, source, exp, appliedDaysAgo, currentRole })
   }
   return out
 }

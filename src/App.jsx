@@ -6,11 +6,12 @@ import SkillsTest from './screens/candidate/SkillsTest.jsx'
 import ScoreResult from './screens/candidate/ScoreResult.jsx'
 import JobListing from './screens/recruiter/JobListing.jsx'
 import CandidateListing from './screens/recruiter/CandidateListing.jsx'
+import CandidateDetail from './screens/recruiter/CandidateDetail.jsx'
 import Shortlist from './screens/recruiter/Shortlist.jsx'
 
 const PERSONA = {
   roast: 'Candidate', test: 'Candidate', result: 'Candidate',
-  jobs: 'Recruiter', candidates: 'Recruiter', shortlist: 'Recruiter',
+  jobs: 'Recruiter', candidates: 'Recruiter', candidateDetail: 'Recruiter', shortlist: 'Recruiter',
 }
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
     result: <ScoreResult go={go} back={back} home={home} {...top.params} />,
     jobs: <JobListing go={go} back={back} />,
     candidates: <CandidateListing go={go} back={back} {...top.params} />,
+    candidateDetail: <CandidateDetail go={go} back={back} {...top.params} />,
     shortlist: <Shortlist go={go} back={back} home={home} {...top.params} />,
   }
 
